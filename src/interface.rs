@@ -55,7 +55,7 @@ impl CLI {
         // first line
         const N_US: usize = 6;
         const N_SLASH: usize = 2;
-        let order: usize = Fisherman::VISUAL_RADIUS as usize + 1;
+        let order: usize = Fisherman::VISUAL_RADIUS as usize;
 
         // let order = 0;
         // beginning
