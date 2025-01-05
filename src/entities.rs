@@ -4,6 +4,8 @@ use crate::map::{HexCell, HexCoord, HexDir};
 
 pub trait Damageable {
     fn take_damage(&mut self, amount: i32);
+    fn get_hp(&self) -> i32;
+    fn get_initial_hp(&self) -> i32;
     fn is_alive(&self) -> bool;
     fn is_hurt(&self) -> bool;
 }
@@ -51,6 +53,16 @@ impl Damageable for Marlin {
     fn is_hurt(&self) -> bool {
         self.hp < Self::INITIAL_HP
     }
+    
+    #[inline]
+    fn get_hp(&self) -> i32 {
+        self.hp
+    }
+    
+    #[inline]
+    fn get_initial_hp(&self) -> i32 {
+        Self::INITIAL_HP
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -81,6 +93,16 @@ impl Damageable for Shark {
 
     fn is_hurt(&self) -> bool {
         self.hp < Self::INITIAL_HP
+    }
+    
+    #[inline]
+    fn get_hp(&self) -> i32 {
+        self.hp
+    }
+    
+    #[inline]
+    fn get_initial_hp(&self) -> i32 {
+        Self::INITIAL_HP
     }
 }
 
@@ -213,6 +235,15 @@ impl Damageable for Fisherman {
     
     fn is_hurt(&self) -> bool {
         self.hp < self.initial_hp
+    }
+    #[inline]
+    fn get_hp(&self) -> i32 {
+        self.hp
+    }
+
+    #[inline]
+    fn get_initial_hp(&self) -> i32 {
+        self.initial_hp
     }
 }
 

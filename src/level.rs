@@ -170,7 +170,7 @@ impl Level {
         if !self.fisherman.is_alive() {
             return Some(Err(self.fisherman.get_captured_marlins()))
         }
-        if self.fisherman.get_coord() == Fisherman::HARBOR_COORD && self.fisherman.get_captured_marlins() > self.target {
+        if self.fisherman.get_coord() == Fisherman::HARBOR_COORD && self.fisherman.get_captured_marlins() >= self.target {
             return Some(Ok(self.fisherman.get_captured_marlins()))
         }
         None

@@ -1,9 +1,10 @@
 use termion::input::TermRead;
 
-use crate::{entities::Fisherman, map::{HexCell, HexCoord, HexDir}};
+use crate::{entities::{Damageable, Fisherman}, map::{HexCell, HexCoord, HexDir}};
 
-use std::{collections::HashMap, io::stdin};
-
+use core::f32;
+use std::{collections::HashMap, io::{stdin, stdout, Read, Write}};
+use termion::{color, style};
 pub enum UserAction {
     Move(HexDir),
     Discover,
@@ -23,12 +24,34 @@ pub struct CLI {
 
 impl CLI {
     pub fn new() -> Self {
+        println!("{}{}\n{}{}                         The Old Man and the Sea{}", termion::clear::All, termion::cursor::Goto(1, 1), color::Fg(color::Green), style::Bold, style::Reset);
+        println!("{}                                       by Endaytrer{}\n", style::Italic, style::Reset);
+        println!("============================== How to play ==============================");
+        println!("{}Objective{}: Capture at least TARGET marlins (as much as possible) and", style::Bold, style::Reset);
+        println!("return to harbor, avoid sharks to keep HP above 0.\n");
+        println!("Only {}discovered{} marlins are shown on map, all sharks are shown. Sharks", style::Bold, style::Reset);
+        println!("will chase you very closely!\n");
+        println!("==============================  Key Binds  ==============================");
+        println!("  W     ->      Move Up                   |  Shift + W ->     Capture Up");
+        println!("  X     ->      Move Down                 |  Shift + X ->     Capture Down");
+        println!("  Q     ->      Move Upleft               |  Shift + Q ->     Capture Upleft");
+        println!("  Z     ->      Move Downleft             |  Shift + Z ->     Capture Downleft");
+        println!("  E     ->      Move Upright              |  Shift + E ->     Capture Upright");
+        println!("  C     ->      Move Downright            |  Shift + C ->     Capture Downright");
+        println!("  S     ->      Stay In Place             |  Shift + S ->     Capture Current");
+        println!("  [Key] + Enter -> Commit Action          |");
+        println!("  Enter         -> Find Nearby Marlins    |");
+        println!("=========================================================================");
+        println!("\n                     {}PRESS ANY KEY TO CONTINUE{}", style::Bold, style::Reset);
+        let mut stdin = stdin().lock();
+        let mut byte = [0u8];
+        stdin.read_exact(&mut byte).unwrap();
         CLI {
             target: 0,
             map: HashMap::new(),
         }
     }
-    fn render_map(&mut self, map: HashMap<HexCoord, HexCell>, fisherman: &Fisherman) {
+    fn render_map(map: HashMap<HexCoord, HexCell>, fisherman: &Fisherman) {
         // first line
         const N_US: usize = 6;
         const N_SLASH: usize = 2;
@@ -348,15 +371,59 @@ impl CLI {
             }
             println!();
         }
+        println!();
+    }
+
+    fn render_compass(fisherman: &Fisherman) -> String {
+        let dist = fisherman.get_coord().distance(&Fisherman::HARBOR_COORD);
+        if dist == 0 {
+            return "0NM from harbor".to_string()
+        }
+        let dir = Fisherman::HARBOR_COORD - fisherman.get_coord();
+        let zero = dir.r;
+        let sixty = dir.q;
+        let x = (zero as f32) + (sixty as f32) / 2f32;
+        let y = (sixty as f32) * 3f32.sqrt() / 2f32;
+        let rad = f32::atan2(y, x); // (-PI, PI)
+        let rad = if rad < 0.0 { f32::consts::TAU + rad } else { rad };
+        let deg = rad / f32::consts::PI * 180f32;
+        let (arrow, dir) = match deg {
+            0.0..22.5 | 337.5..=360.0 => ("↑", "N"),
+            22.5..67.5   => ("↗", "NE"),
+            67.5..112.5  => ("→", "E"),
+            112.5..157.5 => ("↘", "SE"),
+            157.5..202.5 => ("↓", "S"),
+            202.5..247.5 => ("↙", "SW"),
+            247.5..292.5 => ("←", "W"),
+            292.5..337.5 => ("↖", "NW"),
+            _ => panic!("degree conversion failed")
+        };
+        format!("{} {}°{:2>} {}NM from harbor", arrow, deg as i32, dir, dist)
     }
 }
 
 impl UserInterface for CLI {
     fn render(&mut self, target: usize, fisherman: Fisherman, map: HashMap<HexCoord, HexCell>) {
-        println!("target: {target}, fisherman: {fisherman:?}");
         self.target = target;
         self.map = map.clone();
-        self.render_map(map, &fisherman);
+    
+        let mut heart_format = String::new();
+        for _ in 0..fisherman.get_hp() {
+            heart_format += "♥ "
+        }for _ in fisherman.get_hp()..fisherman.get_initial_hp() {
+            heart_format += "♡ "
+        }
+        print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
+        Self::render_map(map, &fisherman);
+        if fisherman.get_captured_marlins() >= target {
+            print!("{}", color::Fg(color::Green));
+        }
+        print!("target: {}/{target}{}, {}, ", fisherman.get_captured_marlins(), style::Reset, Self::render_compass(&fisherman));
+        if fisherman.get_hp() as f32 / fisherman.get_initial_hp() as f32 <= 0.25 {
+            print!("{}", color::Fg(color::Red));
+        }
+        print!("HP: {}{} Operation: ", heart_format, style::Reset);
+        stdout().flush().unwrap();
     }
     
     fn input(&mut self) -> UserAction {

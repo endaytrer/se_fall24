@@ -62,9 +62,9 @@ impl HexCoord {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HexDir {
-    q: i32,
-    r: i32,
-    s: i32,
+    pub q: i32,
+    pub r: i32,
+    pub s: i32,
 }
 
 impl HexDir {
@@ -76,7 +76,7 @@ impl HexDir {
     pub const SOUTHWEST: HexDir = HexDir { q: -1, r: 0, s: 1 };
     pub const NORTHWEST: HexDir = HexDir { q: -1, r: 1, s: 0 };
 
-    pub const fn new(q: i32, r: i32, s: i32) -> Self {
+    pub const fn _new(q: i32, r: i32, s: i32) -> Self {
         assert!(q + r + s == 0);
         Self {q, r, s}
     }
@@ -134,11 +134,22 @@ impl Add<HexDir> for HexCoord {
     }
 }
 
-impl Sub for HexCoord {
+impl Sub<HexDir> for HexCoord {
     type Output = HexCoord;
 
-    fn sub(self, other: HexCoord) -> HexCoord {
+    fn sub(self, other: HexDir) -> HexCoord {
         HexCoord {
+            q: self.q - other.q,
+            r: self.r - other.r,
+            s: self.s - other.s,
+        }
+    }
+}
+impl Sub<HexCoord> for HexCoord {
+    type Output = HexDir;
+
+    fn sub(self, other: HexCoord) -> HexDir {
+        HexDir {
             q: self.q - other.q,
             r: self.r - other.r,
             s: self.s - other.s,
