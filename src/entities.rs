@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use wasm_bindgen::prelude::*;
+
 use crate::map::{HexCell, HexCoord, HexDir};
 
 pub trait Damageable {
@@ -15,7 +17,8 @@ pub trait Attacker<T: Damageable> {
 }
 
 
-#[derive(Debug, Clone)]
+#[wasm_bindgen]
+#[derive(Debug, Clone, Copy)]
 pub struct Marlin {
     discovered: bool, // Indicates whether this Marlin has been discovered
     hp: i32,
@@ -65,6 +68,7 @@ impl Damageable for Marlin {
     }
 }
 
+#[wasm_bindgen]
 #[derive(Debug, Clone)]
 pub struct Shark {
     hp: i32,
@@ -112,7 +116,7 @@ impl <T: Damageable> Attacker<T> for Shark {
     }
 }
 
-
+#[wasm_bindgen]
 #[derive(Debug, Clone)]
 pub struct Fisherman {
     coordinate: HexCoord,

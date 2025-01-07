@@ -11,5 +11,5 @@
 ## Quickstart
 
 ```
-cargo run
+cargo run --bin app --features cli
 ```

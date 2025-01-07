@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use rand::{seq::{IteratorRandom, SliceRandom}, Rng};
+use wasm_bindgen::prelude::*;
 
-use crate::{entities::{Attacker, Damageable, Fisherman, Marlin, Shark}, interface::UserInterface, map::{HexCell, HexCoord}};
+use crate::{entities::{Attacker, Damageable, Fisherman, Marlin, Shark}, interface::{web::WebUI, UserAction, UserInterface}, map::{HexCell, HexCoord}};
 
 pub struct Level {
     target: usize,
@@ -207,10 +208,10 @@ impl Level {
             }
         }
     }
-    fn action_player(&mut self, interface: &mut impl UserInterface) {
+    async fn action_player(&mut self, interface: &mut impl UserInterface) {
         interface.render(self.target, self.get_fisherman(), self.get_map());
         loop {
-            if match interface.input() {
+            if match interface.input().await {
                 crate::interface::UserAction::Move(dir) => self.fisherman.operate(dir),
                 crate::interface::UserAction::Discover => self.fisherman.discover_marlins(&mut self.map),
                 crate::interface::UserAction::Capture(dir) => self.fisherman.capture_marlins(self.fisherman.get_coord() + dir, &mut self.map),
@@ -223,14 +224,37 @@ impl Level {
             interface.invalid_input();
         }
     }
-    fn turn(&mut self, interface: &mut impl UserInterface) -> Option<Result<usize, usize>> {
+    async fn turn(&mut self, interface: &mut impl UserInterface) -> Option<Result<usize, usize>> {
         self.spawn_new_creatures();
-        self.action_player(interface);
+        self.action_player(interface).await;
         self.action_marlins();
         self.action_sharks();
         self.kill_died_creatures();
         self.despawn_cells();
         self.test_game_over()
+    }
+    fn input_reverse(&mut self, interface: &mut impl UserInterface, input: UserAction) -> Result<Option<Result<usize, usize>>, ()> {
+        if !match input {
+            crate::interface::UserAction::Move(dir) => self.fisherman.operate(dir),
+            crate::interface::UserAction::Discover => self.fisherman.discover_marlins(&mut self.map),
+            crate::interface::UserAction::Capture(dir) => self.fisherman.capture_marlins(self.fisherman.get_coord() + dir, &mut self.map),
+            crate::interface::UserAction::Attack(coord, index) => {
+                self.fisherman.attack_shark(self.map.get_mut(&coord).and_then(|c| c.sharks.get_mut(index)))
+            },
+        } {
+            interface.invalid_input();
+            return Err(())
+        }
+        self.action_marlins();
+        self.action_sharks();
+        self.kill_died_creatures();
+        self.despawn_cells();
+        if let Some(ans) = self.test_game_over() {
+            return Ok(Some(ans));
+        }
+        self.spawn_new_creatures();
+        interface.render(self.target, self.get_fisherman(), self.get_map());
+        Ok(None)
     }
 
     pub fn get_fisherman(&self) -> Fisherman {
@@ -242,13 +266,66 @@ impl Level {
     }
 
 
-    pub fn start(&mut self, interface: &mut impl UserInterface) -> Result<usize, usize> {
+    pub async fn start(&mut self, interface: &mut impl UserInterface) -> Result<usize, usize> {
         loop {
-            if let Some(res) = self.turn(interface) {
+            if let Some(res) = self.turn(interface).await {
                 return res;
             } else {
                 continue;
             }
         }
+    }
+}
+
+pub struct Game<T: UserInterface> {
+    levels: Vec<Level>,
+    pub(crate) interface: T
+}
+
+impl <T: UserInterface> Game<T> {
+    pub fn new() -> Self {
+
+        let level0 = Level::new(5, 5, 1, 0.5, Box::new(|_| 0.3), Box::new(|_| 0.0));
+        let level1 = Level::new(10, 5, 1, 0.5, Box::new(|_| 0.3), Box::new(|_| 0.05));
+        let level2 = Level::new(15, 5, 1, 0.5, Box::new(|_| 0.25), Box::new(|_| 0.07));
+        Self {
+            levels: vec![level0, level1, level2],
+            interface: T::new()
+        }
+    }
+
+    pub async fn start(&mut self) {
+        for (i, l) in self.levels.iter_mut().enumerate() {
+            match l.start(&mut self.interface).await {
+                Ok(score) => {
+                    self.interface.prompt(format!("You win level {}! score: {score}", i + 1))
+    
+                },
+                Err(score) => {
+                    self.interface.prompt(format!("Game over! score: {score}"));
+                    return;
+                },
+            }
+        }
+
+        self.interface.prompt("Congrats! You win all levels!".to_string());
+    }
+}
+
+#[wasm_bindgen]
+pub struct WebGame(Game<WebUI>);
+
+#[wasm_bindgen]
+impl WebGame {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Self(Game::new())
+    }
+
+    pub async fn start(&mut self) {
+        self.0.start().await
+    }
+    pub fn get_interface(&self) -> WebUI {
+        self.0.interface.clone()
     }
 }

@@ -5,17 +5,8 @@ use crate::{entities::{Damageable, Fisherman}, map::{HexCell, HexCoord, HexDir}}
 use core::f32;
 use std::{collections::HashMap, io::{stdin, stdout, Read, Write}};
 use termion::{color, style};
-pub enum UserAction {
-    Move(HexDir),
-    Discover,
-    Capture(HexDir),
-    Attack(HexCoord, usize)
-}
-pub trait UserInterface {
-    fn render(&mut self, target: usize, fisherman: Fisherman, map: HashMap<HexCoord, HexCell>);
-    fn input(&mut self) -> UserAction;
-    fn invalid_input(&mut self);
-}
+
+use super::{UserAction, UserInterface};
 
 pub struct CLI {
     target: usize,
@@ -23,34 +14,6 @@ pub struct CLI {
 }
 
 impl CLI {
-    pub fn new() -> Self {
-        println!("{}{}\n{}{}                         The Old Man and the Sea{}", termion::clear::All, termion::cursor::Goto(1, 1), color::Fg(color::Green), style::Bold, style::Reset);
-        println!("{}                                       by Endaytrer{}\n", style::Italic, style::Reset);
-        println!("============================== How to play ==============================");
-        println!("{}Objective{}: Capture at least TARGET marlins (as much as possible) and", style::Bold, style::Reset);
-        println!("return to harbor, avoid sharks to keep HP above 0.\n");
-        println!("Only {}discovered{} marlins are shown on map, all sharks are shown. Sharks", style::Bold, style::Reset);
-        println!("will chase you very closely!\n");
-        println!("==============================  Key Binds  ==============================");
-        println!("  W     ->      Move Up                   |  Shift + W ->     Capture Up");
-        println!("  X     ->      Move Down                 |  Shift + X ->     Capture Down");
-        println!("  Q     ->      Move Upleft               |  Shift + Q ->     Capture Upleft");
-        println!("  Z     ->      Move Downleft             |  Shift + Z ->     Capture Downleft");
-        println!("  E     ->      Move Upright              |  Shift + E ->     Capture Upright");
-        println!("  C     ->      Move Downright            |  Shift + C ->     Capture Downright");
-        println!("  S     ->      Stay In Place             |  Shift + S ->     Capture Current");
-        println!("  [Key] + Enter -> Commit Action          |");
-        println!("  Enter         -> Find Nearby Marlins    |");
-        println!("=========================================================================");
-        println!("\n                     {}PRESS ANY KEY TO CONTINUE{}", style::Bold, style::Reset);
-        let mut stdin = stdin().lock();
-        let mut byte = [0u8];
-        stdin.read_exact(&mut byte).unwrap();
-        CLI {
-            target: 0,
-            map: HashMap::new(),
-        }
-    }
     fn render_map(map: HashMap<HexCoord, HexCell>, fisherman: &Fisherman) {
         // first line
         const N_US: usize = 6;
@@ -403,6 +366,36 @@ impl CLI {
 }
 
 impl UserInterface for CLI {
+
+    fn new() -> Self {
+        println!("{}{}\n{}{}                         The Old Man and the Sea{}", termion::clear::All, termion::cursor::Goto(1, 1), color::Fg(color::Green), style::Bold, style::Reset);
+        println!("{}                                       by Endaytrer{}\n", style::Italic, style::Reset);
+        println!("============================== How to play ==============================");
+        println!("{}Objective{}: Capture at least TARGET marlins (as much as possible) and", style::Bold, style::Reset);
+        println!("return to harbor, avoid sharks to keep HP above 0.\n");
+        println!("Only {}discovered{} marlins are shown on map, all sharks are shown. Sharks", style::Bold, style::Reset);
+        println!("will chase you very closely!\n");
+        println!("==============================  Key Binds  ==============================");
+        println!("  W     ->      Move Up                   |  Shift + W ->     Capture Up");
+        println!("  X     ->      Move Down                 |  Shift + X ->     Capture Down");
+        println!("  Q     ->      Move Upleft               |  Shift + Q ->     Capture Upleft");
+        println!("  Z     ->      Move Downleft             |  Shift + Z ->     Capture Downleft");
+        println!("  E     ->      Move Upright              |  Shift + E ->     Capture Upright");
+        println!("  C     ->      Move Downright            |  Shift + C ->     Capture Downright");
+        println!("  S     ->      Stay In Place             |  Shift + S ->     Capture Current");
+        println!("  [Key] + Enter -> Commit Action          |");
+        println!("  Enter         -> Find Nearby Marlins    |");
+        println!("=========================================================================");
+        println!("\n                     {}PRESS ANY KEY TO CONTINUE{}", style::Bold, style::Reset);
+        let mut stdin = stdin().lock();
+        let mut byte = [0u8];
+        stdin.read_exact(&mut byte).unwrap();
+        CLI {
+            target: 0,
+            map: HashMap::new(),
+        }
+    }
+
     fn render(&mut self, target: usize, fisherman: Fisherman, map: HashMap<HexCoord, HexCell>) {
         self.target = target;
         self.map = map.clone();
@@ -426,7 +419,7 @@ impl UserInterface for CLI {
         stdout().flush().unwrap();
     }
     
-    fn input(&mut self) -> UserAction {
+    async fn input(&mut self) -> UserAction {
         let mut stdin = stdin().lock();
         loop {
 
@@ -457,5 +450,9 @@ impl UserInterface for CLI {
     
     fn invalid_input(&mut self) {
         println!("Invalid input!");
+    }
+    fn prompt(&mut self, msg: String) {
+        println!("{}", msg);
+        
     }
 }

@@ -1,17 +1,23 @@
 
 use std::{i32, ops::{Add, Mul, Sub}};
 
+use wasm_bindgen::prelude::*;
+
 use crate::entities::{Marlin, Shark};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[wasm_bindgen]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct HexCoord {
-    q: i32,
-    r: i32,
-    s: i32,
+    pub q: i32,
+    pub r: i32,
+    pub s: i32,
 }
 
 impl HexCoord {
     pub const ZERO: Self = Self { q: 0, r: 0, s: 0 };
+}
+#[wasm_bindgen]
+impl HexCoord {
     // Method to get an iterator of coordinates within a given Manhattan radius
     pub fn within_radius(&self, radius: i32) -> Vec<HexCoord> {
         let mut coords = Vec::new();
@@ -59,7 +65,7 @@ impl HexCoord {
     }
     // Create a new HexCell
 }
-
+#[wasm_bindgen]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct HexDir {
     pub q: i32,
@@ -76,15 +82,20 @@ impl HexDir {
     pub const SOUTHWEST: HexDir = HexDir { q: -1, r: 0, s: 1 };
     pub const NORTHWEST: HexDir = HexDir { q: -1, r: 1, s: 0 };
 
-    pub const fn _new(q: i32, r: i32, s: i32) -> Self {
+}
+#[wasm_bindgen]
+impl HexDir {
+    
+    #[wasm_bindgen(constructor)]
+    pub fn new(q: i32, r: i32, s: i32) -> Self {
         assert!(q + r + s == 0);
         Self {q, r, s}
     }
-    pub const unsafe fn new_unchecked(q: i32, r: i32, s: i32) -> Self {
+    
+    pub unsafe fn new_unchecked(q: i32, r: i32, s: i32) -> Self {
         debug_assert!(q + r + s == 0);
         Self {q, r, s}
     }
-
 }
 
 impl Add for HexDir {
