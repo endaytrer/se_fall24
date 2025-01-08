@@ -18,6 +18,13 @@ impl HexCoord {
 }
 #[wasm_bindgen]
 impl HexCoord {
+    #[wasm_bindgen(constructor)]
+    pub fn new(q: i32, r: i32, s: i32) -> Self {
+        assert!(q + r + s == 0);
+        Self {
+            q, r, s
+        }
+    }
     // Method to get an iterator of coordinates within a given Manhattan radius
     pub fn within_radius(&self, radius: i32) -> Vec<HexCoord> {
         let mut coords = Vec::new();
@@ -167,6 +174,7 @@ impl Sub<HexCoord> for HexCoord {
         }
     }
 }
+
 
 #[derive(Debug, Default, Clone)]
 pub struct HexCell {

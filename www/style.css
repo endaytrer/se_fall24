@@ -1,0 +1,297 @@
+body {
+    margin: 0;
+}
+
+main {
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: rgb(188, 255, 255);
+}
+.game-container {
+    width: 100%;
+    height: calc(100vh - 100px);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+#game {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.hexagon {
+    border: none;
+    overflow: visible;
+    outline: none;
+    height: 128px; /* adjust to control the size  */
+    aspect-ratio: 1/cos(30deg);
+    clip-path: polygon(50% -50%,100% 50%,50% 150%,0 50%);
+    background: url("assets/water_tile.png");
+    background-size: 100%;
+    transform-origin: 50% 50%;
+    position: absolute;
+    transition: transform 600ms ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.hexagon:hover {
+
+    filter: brightness(0.98) saturate(0.98);
+}
+.hexagon:enabled {
+    cursor: pointer;
+    transition: filter 400ms ease-out, transform 600ms ease-in-out;
+}
+.hexagon:enabled:hover {
+    filter: brightness(0.9) saturate(2);
+    transition: filter 50ms ease-out, transform 600ms ease-in-out;
+}
+.fisherman {
+    position: absolute;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    background-color: unset;
+    background-image: url("assets/canoe.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    height: 60px;
+    width: 100px;
+    z-index: 500;
+    margin-top: 20px;
+}
+.harbor {
+    position: absolute;
+    top: 0;
+    margin: auto;
+    height: 100px;
+    width: 144px;
+    background-image: url("assets/harbor.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+.marlin-ripple {
+    position: absolute;
+    margin: auto;
+    height: 30px;
+    width: 40px;
+    background-image: url("assets/ripple.png");
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.shark {
+    cursor: pointer;
+    border: none;
+    outline: none;
+    background-color: unset;
+    position: absolute;
+    margin: auto;
+    height: 30px;
+    width: 40px;
+    background-image: url("assets/shark.png");
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+#stats {
+    border-radius: 10px 10px 0 0;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.15);
+    position:fixed;
+    bottom: 0;
+    width: 100%;
+    max-width: 1280px;
+    height: 100px;
+    background-image: url("assets/toolbar.jpeg");
+    background-size: auto 270%;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#props {
+    display: flex;
+    align-items: center;
+    
+}
+#props .prop {
+    display: flex;
+    flex-direction: column;
+    margin-left: 30px;
+    align-items: center;
+}
+#props .prop:first-child {
+    margin-left: 0;
+}
+#props .prop label {
+    font-size: 1.2rem;
+    text-shadow: 0 0 4px white;
+}
+#props .prop button {
+    margin-top: -40px;
+    cursor: pointer;
+
+    background-color: unset;
+    border: none;
+    outline: none;
+}
+#binocular {
+    height: 100px;
+    width: 160px;
+    background-image: url("assets/binocular.png");
+    background-position: center;
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+
+#web {
+    height: 100px;
+    width: 160px;
+    background-image: url("assets/web.png");
+    background-position: center;
+    background-size: contain;
+    background-repeat: no-repeat;
+}
+#web.capturing {
+    margin-top: -90px !important;
+    margin-bottom: 50px;
+}
+
+.group-1 {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: -80px;
+}
+
+#target {
+    width: 240px;
+    border-radius: 6px;
+    box-sizing: border-box;
+    padding: 20px;
+    color: white;
+    font-size: 1.5rem;
+    /* margin-top: -40px; */
+    height: 100px;
+    background-color: rgb(37, 77, 37);
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 8px solid rgb(99, 183, 99);
+    box-shadow: 2px 12px 8px rgba(0, 0, 0, 0.4),
+                inset 1px 2px 4px rgba(0, 0, 0, 0.3);
+}
+#target.fulfilled::after {
+    content: " ✓";
+    color: rgb(138, 208, 31);
+}
+.hp-container {
+    display: flex;
+    font-size: 2rem;
+    text-shadow: 0 0 4px white;
+    margin-bottom: 10px;
+}
+#health {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+.heart {
+    display: inline-block;
+    margin-left: 4px;
+    color: red;
+    -webkit-text-stroke: 2px rgb(92, 92, 92);
+}
+.heart.empty {
+    color: white;
+}
+#compass {
+    display: flex;
+    margin: 0 0 0 20px;
+    align-items: center;
+}
+.compass-analog {
+    margin-left: 20px;
+}
+.compass-analog .compass-background {
+    position: relative;
+    margin: 20px 0;
+    width: 72px;
+    height: 72px;
+    border-radius: 1000px;
+    background-color: rgba(255, 255, 255, 0.384);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    border: 8px solid rgb(234, 234, 234);
+    box-shadow: 1px 8px 8px rgba(0, 0, 0, 0.3), inset 0 4px 8px rgba(0, 0, 0, 0.2);
+    font-size: 1.2rem;
+}
+.compass-analog #compass-pointer {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    top: 1px;
+    transform-origin: 50% 50%;
+    transition: rotate 200ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.compass-analog #compass-pointer.no-animation {
+    transition: none;
+}
+.compass-analog #compass-pointer::before {
+    content: "";
+    width: 0px;
+    height: 0px;
+    border-style: solid;
+    border-width: 0 6px 35px 6px;
+    border-color: transparent transparent rgb(255, 61, 39) transparent;
+}
+.compass-analog #compass-pointer .circ {
+    
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 1000px;
+    background-color: rgb(150, 150, 150);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+.compass-analog #compass-pointer::after {
+    content: "";
+    width: 0px;
+    height: 0px;
+    border-style: solid;
+    border-width: 35px 6px 0 6px;
+    border-color: #ffffff transparent transparent transparent;
+}
+#compass-digital {
+    background-color: rgb(37, 37, 37);
+    border: 8px solid rgb(234, 234, 234);
+    color: greenyellow;
+    font-family: monospace;
+    height: 48px;
+    width: 150px;
+    border-radius: 4px;
+    padding: 0 4px;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    box-shadow: 4px 8px 8px rgba(0, 0, 0, 0.2);
+}

@@ -2,7 +2,23 @@ use std::collections::HashMap;
 use rand::{seq::{IteratorRandom, SliceRandom}, Rng};
 use wasm_bindgen::prelude::*;
 
-use crate::{entities::{Attacker, Damageable, Fisherman, Marlin, Shark}, interface::{web::WebUI, UserAction, UserInterface}, map::{HexCell, HexCoord}};
+use crate::{entities::{Attacker, Damageable, Fisherman, Marlin, Shark}, map::{HexCell, HexCoord, HexDir}};
+
+#[derive(Debug, Clone, Copy)]
+pub enum UserAction {
+    Move(HexDir),
+    Discover,
+    Capture(HexDir),
+    Attack(HexCoord, usize)
+}
+pub trait UserInterface {
+    fn new() -> Self;
+    fn render(&mut self, game: &Game);
+    fn start(&mut self);
+    fn invalid_input(&mut self);
+    fn prompt(&mut self, msg: String);
+}
+
 
 pub struct Level {
     target: usize,
@@ -208,41 +224,40 @@ impl Level {
             }
         }
     }
-    async fn action_player(&mut self, interface: &mut impl UserInterface) {
-        interface.render(self.target, self.get_fisherman(), self.get_map());
-        loop {
-            if match interface.input().await {
-                crate::interface::UserAction::Move(dir) => self.fisherman.operate(dir),
-                crate::interface::UserAction::Discover => self.fisherman.discover_marlins(&mut self.map),
-                crate::interface::UserAction::Capture(dir) => self.fisherman.capture_marlins(self.fisherman.get_coord() + dir, &mut self.map),
-                crate::interface::UserAction::Attack(coord, index) => {
-                    self.fisherman.attack_shark(self.map.get_mut(&coord).and_then(|c| c.sharks.get_mut(index)))
-                },
-            } {
-                break;
-            }
-            interface.invalid_input();
-        }
-    }
-    async fn turn(&mut self, interface: &mut impl UserInterface) -> Option<Result<usize, usize>> {
-        self.spawn_new_creatures();
-        self.action_player(interface).await;
-        self.action_marlins();
-        self.action_sharks();
-        self.kill_died_creatures();
-        self.despawn_cells();
-        self.test_game_over()
-    }
-    fn input_reverse(&mut self, interface: &mut impl UserInterface, input: UserAction) -> Result<Option<Result<usize, usize>>, ()> {
+    // fn action_player(&mut self, interface: &mut impl UserInterface) {
+    //     interface.render(self.target, self.get_fisherman(), self.get_map());
+    //     loop {
+    //         if match interface.input() {
+    //             crate::interface::UserAction::Move(dir) => self.fisherman.operate(dir),
+    //             crate::interface::UserAction::Discover => self.fisherman.discover_marlins(&mut self.map),
+    //             crate::interface::UserAction::Capture(dir) => self.fisherman.capture_marlins(self.fisherman.get_coord() + dir, &mut self.map),
+    //             crate::interface::UserAction::Attack(coord, index) => {
+    //                 self.fisherman.attack_shark(self.map.get_mut(&coord).and_then(|c| c.sharks.get_mut(index)))
+    //             },
+    //         } {
+    //             break;
+    //         }
+    //         interface.invalid_input();
+    //     }
+    // }
+    // fn turn(&mut self, interface: &mut impl UserInterface) -> Option<Result<usize, usize>> {
+    //     self.spawn_new_creatures();
+    //     self.action_player(interface);
+    //     self.action_marlins();
+    //     self.action_sharks();
+    //     self.kill_died_creatures();
+    //     self.despawn_cells();
+    //     self.test_game_over()
+    // }
+    pub fn advance(&mut self, input: UserAction) -> Result<Option<Result<usize, usize>>, ()> {
         if !match input {
-            crate::interface::UserAction::Move(dir) => self.fisherman.operate(dir),
-            crate::interface::UserAction::Discover => self.fisherman.discover_marlins(&mut self.map),
-            crate::interface::UserAction::Capture(dir) => self.fisherman.capture_marlins(self.fisherman.get_coord() + dir, &mut self.map),
-            crate::interface::UserAction::Attack(coord, index) => {
+            UserAction::Move(dir) => self.fisherman.operate(dir),
+            UserAction::Discover => self.fisherman.discover_marlins(&mut self.map),
+            UserAction::Capture(dir) => self.fisherman.capture_marlins(self.fisherman.get_coord() + dir, &mut self.map),
+            UserAction::Attack(coord, index) => {
                 self.fisherman.attack_shark(self.map.get_mut(&coord).and_then(|c| c.sharks.get_mut(index)))
             },
         } {
-            interface.invalid_input();
             return Err(())
         }
         self.action_marlins();
@@ -253,7 +268,6 @@ impl Level {
             return Ok(Some(ans));
         }
         self.spawn_new_creatures();
-        interface.render(self.target, self.get_fisherman(), self.get_map());
         Ok(None)
     }
 
@@ -266,66 +280,188 @@ impl Level {
     }
 
 
-    pub async fn start(&mut self, interface: &mut impl UserInterface) -> Result<usize, usize> {
-        loop {
-            if let Some(res) = self.turn(interface).await {
-                return res;
-            } else {
-                continue;
-            }
+    // pub fn start(&mut self, interface: &mut impl UserInterface) -> Result<usize, usize> {
+    //     loop {
+    //         if let Some(res) = self.turn(interface) {
+    //             return res;
+    //         } else {
+    //             continue;
+    //         }
+    //     }
+    // }
+}
+
+
+#[wasm_bindgen]
+pub enum InputResult {
+    InvalidInput,
+    Ok,
+    LevelPassed,
+    LevelFailed,
+    GamePassed,
+}
+#[wasm_bindgen]
+#[derive(Debug, Clone, Copy)]
+pub enum WasmUserActionType {
+    Move,
+    Discover,
+    Capture,
+    Attack,
+}
+impl Default for WasmUserActionType {
+    fn default() -> Self {
+        Self::Move
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Default, Debug, Clone, Copy)]
+pub struct WasmUserAction {
+    pub action_type: WasmUserActionType,
+    pub param_0: HexCoord,
+    pub param_1: usize,
+}
+#[wasm_bindgen]
+impl WasmUserAction {
+    pub fn move_action(dir: HexCoord) -> Self {
+        Self {
+            action_type: WasmUserActionType::Move,
+            param_0: dir,
+            param_1: 0,
+        }
+    }
+    pub fn discover_action() -> Self {
+        Self {
+            action_type: WasmUserActionType::Discover,
+            param_0: HexCoord::ZERO,
+            param_1: 0,
+        }
+    }
+    pub fn capture_action(dir: HexCoord) -> Self {
+        Self {
+            action_type: WasmUserActionType::Capture,
+            param_0: dir,
+            param_1: 0,
+        }
+    }
+    pub fn attack_action(coord: HexCoord, index: usize) -> Self {
+        Self {
+            action_type: WasmUserActionType::Attack,
+            param_0: coord,
+            param_1: index,
+        }
+    }
+}
+impl Into<UserAction> for WasmUserAction {
+    fn into(self) -> UserAction {
+        match self.action_type {
+            WasmUserActionType::Move => UserAction::Move(self.param_0 - HexCoord::ZERO),
+            WasmUserActionType::Discover => UserAction::Discover,
+            WasmUserActionType::Capture => UserAction::Capture(self.param_0 - HexCoord::ZERO),
+            WasmUserActionType::Attack => UserAction::Attack(self.param_0, self.param_1),
         }
     }
 }
 
-pub struct Game<T: UserInterface> {
-    levels: Vec<Level>,
-    pub(crate) interface: T
+impl From<UserAction> for WasmUserAction {
+    fn from(value: UserAction) -> Self {
+        match value {
+            UserAction::Move(hex_dir) => Self {
+                action_type: WasmUserActionType::Move,
+                param_0: HexCoord::ZERO + hex_dir,
+                param_1: 0,
+            },
+            UserAction::Discover => Self {
+                action_type: WasmUserActionType::Discover,
+                param_0: HexCoord::ZERO,
+                param_1: 0,
+            },
+            UserAction::Capture(hex_dir) => Self {
+                action_type: WasmUserActionType::Capture,
+                param_0: HexCoord::ZERO + hex_dir,
+                param_1: 0
+            },
+            UserAction::Attack(hex_coord, index) => Self {
+                action_type: WasmUserActionType::Attack,
+                param_0: hex_coord,
+                param_1: index
+            },
+        }
+    }
+}
+#[wasm_bindgen]
+pub struct Game {
+    current_level: Level,
+    current_score: usize,
+    levels: std::vec::IntoIter<Level>,
 }
 
-impl <T: UserInterface> Game<T> {
+#[wasm_bindgen]
+impl Game {
+    #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
-
+    
         let level0 = Level::new(5, 5, 1, 0.5, Box::new(|_| 0.3), Box::new(|_| 0.0));
         let level1 = Level::new(10, 5, 1, 0.5, Box::new(|_| 0.3), Box::new(|_| 0.05));
         let level2 = Level::new(15, 5, 1, 0.5, Box::new(|_| 0.25), Box::new(|_| 0.07));
+        let level_iter = vec![level1, level2].into_iter();
         Self {
-            levels: vec![level0, level1, level2],
-            interface: T::new()
+            current_level: level0,
+            levels: level_iter,
+            current_score: 0,
         }
     }
 
-    pub async fn start(&mut self) {
-        for (i, l) in self.levels.iter_mut().enumerate() {
-            match l.start(&mut self.interface).await {
-                Ok(score) => {
-                    self.interface.prompt(format!("You win level {}! score: {score}", i + 1))
-    
-                },
-                Err(score) => {
-                    self.interface.prompt(format!("Game over! score: {score}"));
-                    return;
-                },
-            }
+    #[inline]
+    pub fn get_fisherman(&self) -> Fisherman {
+        self.current_level.fisherman.clone()
+    }
+
+    #[inline]
+    pub fn get_target(&self) -> usize {
+        self.current_level.target
+    }
+
+    pub fn get_shark_num_at(&self, coord: &HexCoord) -> usize {
+        let Some(cell) = self.current_level.map.get(coord) else {
+            return 0;
+        };
+        cell.sharks.len()
+    }
+
+    pub fn get_discovered_marlin_num_at(&self, coord: &HexCoord) -> usize {
+        let Some(cell) = self.current_level.map.get(coord) else {
+            return 0;
+        };
+        cell.marlins.iter().filter(|t| t.is_discovered()).count()
+    }
+
+    pub fn get_nth_shark_at(&self, coord: &HexCoord, n: usize) -> Option<Shark> {
+        Some(self.current_level.map.get(coord)?.sharks.get(n)?.clone())
+    }
+    #[inline]
+    pub fn get_score(&self) -> usize{
+        self.current_score
+    }
+    pub fn handle_action(&mut self, input: WasmUserAction) -> InputResult {
+        let input = input.into();
+        let Ok(res) = self.current_level.advance(input) else {
+            return InputResult::InvalidInput;
+        };
+        let Some(game_over) = res else { return InputResult::Ok };
+        match game_over {
+            Ok(score) => {
+                self.current_score = score;
+                let Some(next_level) = self.levels.next() else {
+                    return InputResult::GamePassed;
+                };
+                self.current_level = next_level;
+                InputResult::LevelPassed
+            },
+            Err(score) => { 
+                self.current_score = score;
+                InputResult::LevelFailed
+            },
         }
-
-        self.interface.prompt("Congrats! You win all levels!".to_string());
-    }
-}
-
-#[wasm_bindgen]
-pub struct WebGame(Game<WebUI>);
-
-#[wasm_bindgen]
-impl WebGame {
-    #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
-        Self(Game::new())
-    }
-
-    pub async fn start(&mut self) {
-        self.0.start().await
-    }
-    pub fn get_interface(&self) -> WebUI {
-        self.0.interface.clone()
     }
 }

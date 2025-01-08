@@ -1,20 +1,15 @@
 use termion::input::TermRead;
 
-use crate::{entities::{Damageable, Fisherman}, map::{HexCell, HexCoord, HexDir}};
+use crate::{entities::{Damageable, Fisherman}, level::{Game, UserAction}, map::HexDir};
 
 use core::f32;
-use std::{collections::HashMap, io::{stdin, stdout, Read, Write}};
+use std::io::{stdin, stdout, Read, Write};
 use termion::{color, style};
 
-use super::{UserAction, UserInterface};
-
-pub struct CLI {
-    target: usize,
-    map: HashMap<HexCoord, HexCell>
-}
+pub struct CLI;
 
 impl CLI {
-    fn render_map(map: HashMap<HexCoord, HexCell>, fisherman: &Fisherman) {
+    fn render_map(game: &Game, fisherman: &Fisherman) {
         // first line
         const N_US: usize = 6;
         const N_SLASH: usize = 2;
@@ -37,18 +32,12 @@ impl CLI {
                     let s1 = (i as i32) - (order as i32) - (k as i32) - 1;
                     let coord0 = fisherman.get_coord() + unsafe { HexDir::new_unchecked(q0, r, s0) };
                     let coord1 = fisherman.get_coord() + unsafe { HexDir::new_unchecked(q1, r, s1) };
-                    let cell0 = map.get(&coord0);
-                    let cell1 = map.get(&coord1);
+                    let cell0_marlin = game.get_discovered_marlin_num_at(&coord0);
+                    let cell1_shark = game.get_shark_num_at(&coord1);
                     print!("/");
                     // 0th line: marlins
-                    if let Some(c) = cell0 {
-                        let discovered_marlins = c.marlins.iter().filter(|p| p.is_discovered()).collect::<Vec<_>>();
-                        if j == 0 && !discovered_marlins.is_empty() {
-                            print!(" M{:>3} ", discovered_marlins.len());
-                        } else {
-                            // print!("{:>2}{:>2}{:>2}", coord0.get_q(), coord0.get_r(), coord0.get_s());
-                            print!("      ")
-                        }
+                    if j == 0 && cell0_marlin > 0 {
+                        print!(" M{:>3} ", cell0_marlin);
                     } else {
                         // print!("{:>2}{:>2}{:>2}", coord0.get_q(), coord0.get_r(), coord0.get_s());
                         print!("      ")
@@ -57,16 +46,11 @@ impl CLI {
                     print!("\\");
                     // 2nd line: shark
                     if k != i {
-                        if let Some(c) = cell1 {
-                            if j == 0 && !c.sharks.is_empty() {
-                                print!("  S{:>3}  ", c.sharks.len());
-                            } else {
-                                // print!(" {:>2}{:>2}{:>2} ", coord1.get_q(), coord1.get_r(), coord1.get_s());
-                                print!("        ");
-                            }
+                        if j == 0 && cell1_shark > 0 {
+                            print!("  S{:>3}  ", cell1_shark);
                         } else {
                             // print!(" {:>2}{:>2}{:>2} ", coord1.get_q(), coord1.get_r(), coord1.get_s());
-                            print!("        ")
+                            print!("        ");
                         }
                         for _ in 0..(N_US + 2 * (N_SLASH - j - 1) - 8) { print!(" "); }
                     }
@@ -84,7 +68,7 @@ impl CLI {
                 print!("/");
 
                 if coord == fisherman.get_coord() && coord == Fisherman::HARBOR_COORD {
-                    print!("|Player|");
+                    print!("[Player]");
                 } else if coord  == Fisherman::HARBOR_COORD {
                     print!("[||||||]");
                 } else if coord == fisherman.get_coord() {
@@ -112,19 +96,13 @@ impl CLI {
                     let s1 = - (k as i32) + (i as i32) - 1;
                     let coord0 = fisherman.get_coord() + unsafe { HexDir::new_unchecked(q0, r, s0) };
                     let coord1 = fisherman.get_coord() + unsafe { HexDir::new_unchecked(q1, r, s1) };
-                    let cell0 = map.get(&coord0);
-                    let cell1 = map.get(&coord1);
+                    let cell0_marlin = game.get_discovered_marlin_num_at(&coord0);
+                    let cell1_shark = game.get_shark_num_at(&coord1);
                     print!("/");
 
                     // 0th line: marlins
-                    if let Some(c) = cell0 {
-                        let discovered_marlins = c.marlins.iter().filter(|p| p.is_discovered()).collect::<Vec<_>>();
-                        if j == 0 && !discovered_marlins.is_empty() {
-                            print!(" M{:>3} ", discovered_marlins.len());
-                        } else {
-                            // print!("{:>2}{:>2}{:>2}", coord0.get_q(), coord0.get_r(), coord0.get_s());
-                            print!("      ")
-                        }
+                    if j == 0 && cell0_marlin > 0 {
+                        print!(" M{:>3} ", cell0_marlin);
                     } else {
                         // print!("{:>2}{:>2}{:>2}", coord0.get_q(), coord0.get_r(), coord0.get_s());
                         print!("      ")
@@ -134,16 +112,11 @@ impl CLI {
 
                     // 2nd line: shark
                     if k != order {
-                        if let Some(c) = cell1 {
-                            if j == 0 && !c.sharks.is_empty() {
-                                print!("  S{:>3}  ", c.sharks.len());
-                            } else {
-                                // print!(" {:>2}{:>2}{:>2} ", coord1.get_q(), coord1.get_r(), coord1.get_s());
-                                print!("        ");
-                            }
+                        if j == 0 && cell1_shark > 0 {
+                            print!("  S{:>3}  ", cell1_shark);
                         } else {
                             // print!(" {:>2}{:>2}{:>2} ", coord1.get_q(), coord1.get_r(), coord1.get_s());
-                            print!("        ")
+                            print!("        ");
                         }
                         for _ in 0..(N_US + 2 * (N_SLASH - j - 1) - 8) { print!(" "); }
                     }
@@ -158,7 +131,7 @@ impl CLI {
                 let coord = fisherman.get_coord() + unsafe { HexDir::new_unchecked(q, r, s) };
                 print!("/");
                 if coord == fisherman.get_coord() && coord == Fisherman::HARBOR_COORD {
-                    print!("|Player|");
+                    print!("[Player]");
                 } else if coord  == Fisherman::HARBOR_COORD {
                     print!("[||||||]");
                 } else if coord == fisherman.get_coord() {
@@ -185,21 +158,16 @@ impl CLI {
                     let s: i32 = -(k as i32) + (i as i32);
                     let coord0 = fisherman.get_coord() + unsafe { HexDir::new_unchecked(q0, r0, s) };
                     let coord1 = fisherman.get_coord() + unsafe { HexDir::new_unchecked(q1, r1, s) };
-                    let cell0 = map.get(&coord0);
-                    let cell1 = map.get(&coord1);
+                    let cell0_sharks = game.get_shark_num_at(&coord0);
+                    let cell1_marlins = game.get_discovered_marlin_num_at(&coord1);
 
                     print!("\\");
                     // 2nd line: shark
-                    if let Some(c) = cell0 {
-                        if j == 0 && !c.sharks.is_empty() {
-                            print!("  S{:>3}  ", c.sharks.len());
-                        } else {
-                            // print!(" {:>2}{:>2}{:>2} ", coord0.get_q(), coord0.get_r(), coord0.get_s());
-                            print!("        ");
-                        }
+                    if j == 0 && cell0_sharks > 0{
+                        print!("  S{:>3}  ", cell0_sharks);
                     } else {
                         // print!(" {:>2}{:>2}{:>2} ", coord0.get_q(), coord0.get_r(), coord0.get_s());
-                        print!("        ")
+                        print!("        ");
                     }
                     for _ in 0..(N_US + 2 * (N_SLASH - j - 1) - 8) { print!(" "); }
                     
@@ -207,15 +175,8 @@ impl CLI {
                     if k != order {
 
                         // 0th line: marlins
-                        if let Some(c) = cell1 {
-
-                            let discovered_marlins = c.marlins.iter().filter(|p| p.is_discovered()).collect::<Vec<_>>();
-                            if j == 0 && !discovered_marlins.is_empty() {
-                                print!(" M{:>3} ", discovered_marlins.len());
-                            } else {
-                                // print!("{:>2}{:>2}{:>2}", coord1.get_q(), coord1.get_r(), coord1.get_s());
-                                print!("      ")
-                            }
+                        if j == 0 && cell1_marlins > 0 {
+                            print!(" M{:>3} ", cell1_marlins);
                         } else {
                             // print!("{:>2}{:>2}{:>2}", coord1.get_q(), coord1.get_r(), coord1.get_s());
                             print!("      ")
@@ -223,7 +184,6 @@ impl CLI {
                         for _ in 0..(N_US - 6 + 2 * j) { print!(" "); }
                     }
                 }
-                for _ in 0..N_SLASH { print!(" "); }
                 println!();
             }
             for _ in 0..(N_SLASH - 1) { print!(" "); }
@@ -239,7 +199,7 @@ impl CLI {
                 print!("/");
                 if k != order {
                     if coord == fisherman.get_coord() && coord == Fisherman::HARBOR_COORD {
-                        print!("|Player|");
+                        print!("[Player]");
                     } else if coord  == Fisherman::HARBOR_COORD {
                         print!("[||||||]");
                     } else if coord == fisherman.get_coord() {
@@ -266,36 +226,24 @@ impl CLI {
                     let s: i32 = (order as i32) - (k as i32 + 1) + 1;
                     let coord0 = fisherman.get_coord() + unsafe { HexDir::new_unchecked(q0, r0, s) };
                     let coord1 = fisherman.get_coord() + unsafe { HexDir::new_unchecked(q1, r1, s) };
-                    let cell0 = map.get(&coord0);
-                    let cell1 = map.get(&coord1);
+                    let cell0_sharks = game.get_shark_num_at(&coord0);
+                    let cell1_marlins = game.get_discovered_marlin_num_at(&coord1);
                     print!("\\");
 
                     // 2nd line: shark
-                    if let Some(c) = cell0 {
-                        if j == 0 && !c.sharks.is_empty() {
-                            print!("  S{:>3}  ", c.sharks.len());
-                        } else {
-                            // print!(" {:>2}{:>2}{:>2} ", coord0.get_q(), coord0.get_r(), coord0.get_s());
-                            print!("        ");
-                        }
+                    if j == 0 && cell0_sharks > 0 {
+                        print!("  S{:>3}  ", cell0_sharks);
                     } else {
                         // print!(" {:>2}{:>2}{:>2} ", coord0.get_q(), coord0.get_r(), coord0.get_s());
-                        print!("        ")
+                        print!("        ");
                     }
                     for _ in 0..(N_US + 2 * (N_SLASH - j - 1) - 8) { print!(" "); }
                     print!("/");
                     
                     if k != order - i - 1 {
                         // 0th line: marlins
-                        if let Some(c) = cell1 {
-
-                            let discovered_marlins = c.marlins.iter().filter(|p| p.is_discovered()).collect::<Vec<_>>();
-                            if j == 0 && !discovered_marlins.is_empty() {
-                                print!(" M{:>3} ", discovered_marlins.len());
-                            } else {
-                                // print!("{:>2}{:>2}{:>2}", coord1.get_q(), coord1.get_r(), coord1.get_s());
-                                print!("      ")
-                            }
+                        if j == 0 && cell1_marlins > 0{
+                            print!(" M{:>3} ", cell1_marlins);
                         } else {
                             // print!("{:>2}{:>2}{:>2}", coord1.get_q(), coord1.get_r(), coord1.get_s());
                             print!("      ")
@@ -303,7 +251,6 @@ impl CLI {
                         for _ in 0..(N_US - 6 + 2 * j) { print!(" "); }
                     }
                 }
-                for _ in 0..((order - i) * (N_US + N_SLASH) + N_SLASH) { print!(" "); }
                 println!();
             }
 
@@ -320,7 +267,7 @@ impl CLI {
 
                 if k != order - i - 1 {
                     if coord == fisherman.get_coord() && coord == Fisherman::HARBOR_COORD {
-                        print!("|Player|");
+                        print!("[Player]");
                     } else if coord  == Fisherman::HARBOR_COORD {
                         print!("[||||||]");
                     } else if coord == fisherman.get_coord() {
@@ -363,11 +310,8 @@ impl CLI {
         };
         format!("{} {}°{:2>} {}NM from harbor", arrow, deg as i32, dir, dist)
     }
-}
 
-impl UserInterface for CLI {
-
-    fn new() -> Self {
+    pub fn new() -> Self {
         println!("{}{}\n{}{}                         The Old Man and the Sea{}", termion::clear::All, termion::cursor::Goto(1, 1), color::Fg(color::Green), style::Bold, style::Reset);
         println!("{}                                       by Endaytrer{}\n", style::Italic, style::Reset);
         println!("============================== How to play ==============================");
@@ -390,16 +334,12 @@ impl UserInterface for CLI {
         let mut stdin = stdin().lock();
         let mut byte = [0u8];
         stdin.read_exact(&mut byte).unwrap();
-        CLI {
-            target: 0,
-            map: HashMap::new(),
-        }
+        CLI
     }
 
-    fn render(&mut self, target: usize, fisherman: Fisherman, map: HashMap<HexCoord, HexCell>) {
-        self.target = target;
-        self.map = map.clone();
-    
+    pub fn render(&mut self, game: &Game) {
+        let target = game.get_target();
+        let fisherman = game.get_fisherman();
         let mut heart_format = String::new();
         for _ in 0..fisherman.get_hp() {
             heart_format += "♥ "
@@ -407,7 +347,7 @@ impl UserInterface for CLI {
             heart_format += "♡ "
         }
         print!("{}{}", termion::clear::All, termion::cursor::Goto(1, 1));
-        Self::render_map(map, &fisherman);
+        Self::render_map(game, &fisherman);
         if fisherman.get_captured_marlins() >= target {
             print!("{}", color::Fg(color::Green));
         }
@@ -419,7 +359,7 @@ impl UserInterface for CLI {
         stdout().flush().unwrap();
     }
     
-    async fn input(&mut self) -> UserAction {
+    pub fn input(&mut self) -> UserAction {
         let mut stdin = stdin().lock();
         loop {
 
@@ -448,11 +388,11 @@ impl UserInterface for CLI {
         }
     }
     
-    fn invalid_input(&mut self) {
+    pub fn invalid_input(&mut self) {
         println!("Invalid input!");
     }
-    fn prompt(&mut self, msg: String) {
+    pub fn prompt(&mut self, msg: String) {
         println!("{}", msg);
-        
     }
+
 }

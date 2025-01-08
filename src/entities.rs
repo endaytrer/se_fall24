@@ -6,8 +6,6 @@ use crate::map::{HexCell, HexCoord, HexDir};
 
 pub trait Damageable {
     fn take_damage(&mut self, amount: i32);
-    fn get_hp(&self) -> i32;
-    fn get_initial_hp(&self) -> i32;
     fn is_alive(&self) -> bool;
     fn is_hurt(&self) -> bool;
 }
@@ -23,11 +21,14 @@ pub struct Marlin {
     discovered: bool, // Indicates whether this Marlin has been discovered
     hp: i32,
 }
-
 impl Marlin {
     const INITIAL_HP: i32 = 4;
     pub const MOVE_RADIUS: i32 = 1;
-    pub const fn new() -> Self {
+}
+
+#[wasm_bindgen]
+impl Marlin {
+    pub fn new() -> Self {
         Marlin {
             discovered: false,
             hp: Self::INITIAL_HP,
@@ -36,6 +37,16 @@ impl Marlin {
     #[inline]
     pub fn is_discovered(&self) -> bool {
         self.discovered
+    }
+
+    #[inline]
+    pub fn get_hp(&self) -> i32 {
+        self.hp
+    }
+    
+    #[inline]
+    pub fn get_initial_hp(&self) -> i32 {
+        Self::INITIAL_HP
     }
 }
 
@@ -57,15 +68,6 @@ impl Damageable for Marlin {
         self.hp < Self::INITIAL_HP
     }
     
-    #[inline]
-    fn get_hp(&self) -> i32 {
-        self.hp
-    }
-    
-    #[inline]
-    fn get_initial_hp(&self) -> i32 {
-        Self::INITIAL_HP
-    }
 }
 
 #[wasm_bindgen]
@@ -85,6 +87,18 @@ impl Shark {
         }
     }
 }
+#[wasm_bindgen]
+impl Shark {
+    #[inline]
+    pub fn get_hp(&self) -> i32 {
+        self.hp
+    }
+    
+    #[inline]
+    pub fn get_initial_hp(&self) -> i32 {
+        Self::INITIAL_HP
+    }
+}
 
 impl Damageable for Shark {
     fn take_damage(&mut self, amount: i32) {
@@ -99,15 +113,6 @@ impl Damageable for Shark {
         self.hp < Self::INITIAL_HP
     }
     
-    #[inline]
-    fn get_hp(&self) -> i32 {
-        self.hp
-    }
-    
-    #[inline]
-    fn get_initial_hp(&self) -> i32 {
-        Self::INITIAL_HP
-    }
 }
 
 impl <T: Damageable> Attacker<T> for Shark {
@@ -217,6 +222,9 @@ impl Fisherman {
         self.attack(shark);
         true
     }
+}
+#[wasm_bindgen]
+impl Fisherman {
     #[inline]
     pub fn get_coord(&self) -> HexCoord {
         self.coordinate
@@ -225,8 +233,16 @@ impl Fisherman {
     pub fn get_captured_marlins(&self) -> usize {
         self.captured_marlins
     }
-}
 
+    #[inline]
+    pub fn get_hp(&self) -> i32 {
+        self.hp
+    }
+    #[inline]
+    pub fn get_initial_hp(&self) -> i32 {
+        self.initial_hp
+    }
+}
 
 impl Damageable for Fisherman {
     fn take_damage(&mut self, amount: i32) {
@@ -239,15 +255,6 @@ impl Damageable for Fisherman {
     
     fn is_hurt(&self) -> bool {
         self.hp < self.initial_hp
-    }
-    #[inline]
-    fn get_hp(&self) -> i32 {
-        self.hp
-    }
-
-    #[inline]
-    fn get_initial_hp(&self) -> i32 {
-        self.initial_hp
     }
 }
 
